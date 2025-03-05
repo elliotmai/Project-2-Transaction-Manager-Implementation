@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "*.sqlbook": "sql",
+        "*.ndjson": "jsonl",
+        "*.dbclient-js": "javascript",
+        "zgt_tm.C": "cpp",
+        "zgt_tx.C": "cpp",
+        "zgt_semaphore.C": "cpp",
+        "zgt_ht.C": "cpp",
+        "zgt_test.C": "cpp"
+    }
+}
