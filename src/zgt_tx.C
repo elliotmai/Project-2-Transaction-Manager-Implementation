@@ -103,6 +103,30 @@ void *readtx(void *arg){
   struct param *node = (struct param*)arg;// get tid and objno and count
 
   // do the operations for reading. Write your code
+  long tid = node->tid;
+  long obno = node->obno;
+
+  //psudo code:
+  /*
+  Get the transaction semaphore
+
+  check if the transaction can proceed
+    if not then set the sleep time for the operation
+    else
+    Implement lock aquisition logic
+  check for conflicts with existing locks
+
+  log the read op
+  decrease object value by 4
+  sleep for operation time
+
+  Release locks
+  uptate transaction state
+  Signal waiting transaction
+  release semaphore -> i think to set it back to its defalut number 1 
+  exit tread
+  */
+  pthread_exit(NULL);	
 }
 
 
@@ -110,7 +134,27 @@ void *writetx(void *arg){ //do the operations for writing; similar to readTx
   struct param *node = (struct param*)arg;	// struct parameter that contains
   
   // do the operations for writing; similar to readTx. Write your code
+   //psudo code:
+  long tid = node->tid;
+  long obno = node->obno;
+  /*
+  Get the transaction semaphore
 
+  check if the transaction can proceed
+  Implement lock aquisition logic
+  check for conflicts with existing locks
+
+  log the write op
+  increase object value by 7
+  sleep for operation time
+
+  Release locks
+  uptate transaction state
+  Signal waiting transaction
+  release semaphore
+  exit tread
+  */
+ pthread_exit(NULL);	
 }
 
 // common method to process read/write: Just a suggestion
@@ -123,8 +167,10 @@ void *process_read_write_operation(long tid, long obno,  int count, char mode){
 void *aborttx(void *arg)
 {
   struct param *node = (struct param*)arg;// get tid and count  
-
+  long tid = node->tid;
+  long count = node->count;
   //write your code
+  // should release all the locks, doesnt have to me in a particiular order
 
   pthread_exit(NULL);			// thread exit
 }
@@ -133,7 +179,10 @@ void *committx(void *arg)
 {
  
     //remove the locks/objects before committing
+
   struct param *node = (struct param*)arg;// get tid and count
+  long tid = node->tid;
+  long count = node->count;
 
   //write your code
   pthread_exit(NULL);			// thread exit
@@ -180,6 +229,9 @@ int zgt_tx::set_lock(long tid1, long sgno1, long obno1, int count, char lockmode
   //if successful  return(0); else -1
   
     //write your code
+    // should be similar to the free_locks below
+    //semophore =0 means that its locked
+    //optime is when you should sleep an operation
   
 }
 

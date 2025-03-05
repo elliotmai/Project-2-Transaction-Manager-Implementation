@@ -13,7 +13,7 @@ MAIN=zgt_test
 #solutions dir should have src, includes, and test-files directories
 #change with your path if you are not using omega.uta.edu
 
-TXMGR= ..
+TXMGR= /home/nxs8090/Project-2-Transaction-Manager-Implementation
 
 
 

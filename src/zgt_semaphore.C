@@ -22,7 +22,7 @@
 
 extern zgt_tm *ZGT_Sh;			// Transaction manager object
 
- union semun {
+  union semun {
              int val;
              struct semid_ds *buf;
              ushort *array;
