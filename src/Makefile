@@ -16,7 +16,6 @@ MAIN=zgt_test
 TXMGR= /home/ngm1016/CSE-4331/Project-2-Transaction-Manager-Implementation
 
 
-
 #set DIRPATH to the dir from where you use the g++ compiler, change with your path if you are not using omega.uta.edu
 DIRPATH=/usr
 CC=$(DIRPATH)/bin/g++ 
