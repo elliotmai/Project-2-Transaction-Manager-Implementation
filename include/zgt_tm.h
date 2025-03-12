@@ -45,7 +45,7 @@ class zgt_tm{
   	int sem;
 	char *logfilename; // logfile -> logfilename
     FILE *logfile;  // Added to avoid confusion
-
+	
 	// Pointer for wait_for => wait for graph
 	wait_for *waitgraph;
 

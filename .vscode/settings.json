@@ -3,6 +3,24 @@
     "zgt_test.C": "cpp",
     "zgt_semaphore.C": "cpp",
     "zgt_tm.C": "cpp",
-    "zgt_tx.C": "cpp"
+    "zgt_tx.C": "cpp",
+    "zgt_ht.C": "cpp",
+    "__bit_reference": "cpp",
+    "__node_handle": "cpp",
+    "bitset": "cpp",
+    "deque": "cpp",
+    "limits": "cpp",
+    "optional": "cpp",
+    "ratio": "cpp",
+    "tuple": "cpp",
+    "vector": "cpp",
+    "charconv": "cpp",
+    "chrono": "cpp",
+    "format": "cpp",
+    "system_error": "cpp",
+    "array": "cpp",
+    "functional": "cpp",
+    "type_traits": "cpp",
+    "utility": "cpp"
   }
 }

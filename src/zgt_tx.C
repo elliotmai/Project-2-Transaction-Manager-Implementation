@@ -105,28 +105,157 @@ void *readtx(void *arg){
   // do the operations for reading. Write your code
   long tid = node->tid;
   long obno = node->obno;
+  int count = node->count;
+  // debug to see if getting the info 
+  #ifdef TX_DEBUG
+    printf("\n Readtx: %d, object: %d, count: %d",tid,obno, count);
+    fflush(stdout);
+  #endif
 
+  zgt_tx *tx = ZGT_Sh->lastr;
   //psudo code:
-  /*
-  Get the transaction semaphore
+  zgt_p(tx->semno); // locks tha transaction manager like in beginTx
 
-  check if the transaction can proceed
-    if not then set the sleep time for the operation
-    else
-    Implement lock aquisition logic
-  check for conflicts with existing locks
 
-  log the read op
-  decrease object value by 4
-  sleep for operation time
+   // needs to get the tx(tid) 
+  if (tx == NULL)
+  {
+    printf("\n Error: Transaction %d not found", tid);
+    fflush(stdout);
+    zgt_v(tx->semno); // release the resource
+    pthread_exit(NULL);
+  }
+  // check the condition value so synchronize threads
 
-  Release locks
-  uptate transaction state
-  Signal waiting transaction
-  release semaphore -> i think to set it back to its defalut number 1 
-  exit tread
-  */
-  pthread_exit(NULL);	
+  while ( ZGT_Sh->condset[tid] != count)
+  {
+    zgt_v(0);
+      
+    #ifdef TX_DEBUG
+      printf("\n ReadTx: %d waiting for its turn, count %d, condset = %d", tid,count,ZGT_Sh->condset[tid]);
+      fflush(stdout);
+    #endif
+
+    // wait on This tx cond. variable
+    pthread_mutex_lock(&ZGT_Sh->mutexpool[tid]);
+    pthread_cond_wait(&ZGT_Sh->condpool[tid],&ZGT_Sh->mutexpool[tid]);
+    pthread_mutex_unlock(&ZGT_Sh->mutexpool[tid]);
+
+    // reacquire teh TM lock
+    zgt_p(0);
+
+    // Check if the tx was aborted while waiting
+    if(tx->get_status() == TR_ABORT)
+    {
+      #ifdef TX_DEBUG
+        printf("\n Readtx: %d was aborted while waiting",tid);
+        fflush(stdout);
+      #endif
+      zgt_v(0);
+      pthread_exit(NULL);
+    }
+  }
+  // end of checking the sequence
+  
+  char lockmode = ' ';
+  zgt_hlink *resource = ZGT_Ht->find(tid,obno); // get the lock head
+
+  if(resource != NULL)
+  {
+    // the object is already locked
+    #ifdef TX_DEBUG
+      printf("\n Readtx: %d holds lock on obj. &d",tid, obno);
+      fflush(stdout);
+    #endif
+    //set the lockmode to the same as the head lock
+    lockmode = resource->lockmode;
+  }
+  else
+  {
+    // try to get a share lock (S)
+    // check if there is a conflicting lock on the obj.
+    zgt_hlink *conflict = ZGT_Ht->findt(tid,tx->sgno, obno);
+    if (conflict != NULL && conflict->lockmode == 'X')
+    {
+      // conflicting write locks exist, must wait
+      // tx-> set_status(TR_WAIT)
+      //tx->set_lock();
+      //tx->set_obno(obno)
+
+      long conflict_tid = conflict->tid;
+      tx->setTx_semno(conflict_tid,0);
+
+      #ifdef TX_DEBUG
+      printf("\n Readtx: %d waiding for object %d held by %d", tid, obno,conflict_tid);
+      fflush(stdout);
+      #endif
+      // release the tm lock and wait
+      zgt_v(0);
+      zgt_p(tid);
+
+      // get the tm lock
+      zgt_p(0);
+
+      // check if the tx was aborted while waiting
+      if (tx->get_status() == TR_ABORT)
+      {
+        #ifdef TX_DEBUG
+        printf("\n Readtx: %d was aborted while waiting for the lock",tid);
+        fflush(stdout);
+        #endif
+        zgt_v(0);
+        pthread_exit(NULL);
+      }
+      // reset transaction parameters
+      /*
+      tx->set_status (TR_ACTIVE);
+      tx->set_obno(-1);
+      tx->set_lock(' ');
+      tx->setTx_semno(-1);
+      */
+    }
+
+
+
+      // Insert the obj into the hash table with READ lock
+      lockmode = 'R';
+      ZGT_Ht->add(tx, tx->sgno,obno,lockmode);
+
+      #ifdef TX_DEBUG
+        printf("\n Readtx: %d, got read lock on obj. %d", tid, obno);
+        fflush(stdout);
+      #endif
+  }
+
+      // perform the read operation
+      // decrease the value by 4
+      zgt_p(0); // get the lock
+      zgt_tx *txt = ZGT_Sh->lastr; // this will  hold the TXT and would get the tx
+      // get  the obj. value and decrease it - - rn i am not shure how to getthe obj val
+      int value = ZGT_Sh->objarray[obno]->value;// i belive that this is it
+      value = -4;
+
+      //log operation
+      fprintf(ZGT_Sh ->logfile, "T%d\t ReadTx\t %d:%d:%d\t ReadLock\t Granted\t %c \n", tid, obno,value, ZGT_Sh->optime[tid], txt->get_status()) ;
+      fflush(ZGT_Sh->logfile);
+
+      // increment the condset value for this transaction
+      ZGT_Sh->condset[tid]++;
+      
+      //release the tm lock
+      zgt_v(0);
+     // sleep for operation time
+      usleep(ZGT_Sh->optime[tid]);
+      
+      #ifdef TX_DEBUG
+        printf("\n Readtx: %d completed for obj %d", tid, obno);
+        fflush(stdout);
+      #endif
+
+
+      finish_operation(node->tid);
+      pthread_exit(NULL);	
+    
 }
 
 
