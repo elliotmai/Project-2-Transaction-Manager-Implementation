@@ -105,156 +105,10 @@ void *readtx(void *arg){
   // do the operations for reading. Write your code
   long tid = node->tid;
   long obno = node->obno;
-  int count = node->count;
-  // debug to see if getting the info 
-  #ifdef TX_DEBUG
-    printf("\n Readtx: %d, object: %d, count: %d",tid,obno, count);
-    fflush(stdout);
-  #endif
+  long count = node->count;
+  process_read_write_operation(tid,obno,count,'R');
+  pthread_exit(NULL);
 
-  zgt_tx *tx = ZGT_Sh->lastr;
-  //psudo code:
-  zgt_p(tx->semno); // locks tha transaction manager like in beginTx
-
-
-   // needs to get the tx(tid) 
-  if (tx == NULL)
-  {
-    printf("\n Error: Transaction %d not found", tid);
-    fflush(stdout);
-    zgt_v(tx->semno); // release the resource
-    pthread_exit(NULL);
-  }
-  // check the condition value so synchronize threads
-
-  while ( ZGT_Sh->condset[tid] != count)
-  {
-    zgt_v(0);
-      
-    #ifdef TX_DEBUG
-      printf("\n ReadTx: %d waiting for its turn, count %d, condset = %d", tid,count,ZGT_Sh->condset[tid]);
-      fflush(stdout);
-    #endif
-
-    // wait on This tx cond. variable
-    pthread_mutex_lock(&ZGT_Sh->mutexpool[tid]);
-    pthread_cond_wait(&ZGT_Sh->condpool[tid],&ZGT_Sh->mutexpool[tid]);
-    pthread_mutex_unlock(&ZGT_Sh->mutexpool[tid]);
-
-    // reacquire teh TM lock
-    zgt_p(0);
-
-    // Check if the tx was aborted while waiting
-    if(tx->get_status() == TR_ABORT)
-    {
-      #ifdef TX_DEBUG
-        printf("\n Readtx: %d was aborted while waiting",tid);
-        fflush(stdout);
-      #endif
-      zgt_v(0);
-      pthread_exit(NULL);
-    }
-  }
-  // end of checking the sequence
-  
-  char lockmode = ' ';
-  zgt_hlink *resource = ZGT_Ht->find(tid,obno); // get the lock head
-
-  if(resource != NULL)
-  {
-    // the object is already locked
-    #ifdef TX_DEBUG
-      printf("\n Readtx: %d holds lock on obj. &d",tid, obno);
-      fflush(stdout);
-    #endif
-    //set the lockmode to the same as the head lock
-    lockmode = resource->lockmode;
-  }
-  else
-  {
-    // try to get a share lock (S)
-    // check if there is a conflicting lock on the obj.
-    zgt_hlink *conflict = ZGT_Ht->findt(tid,tx->sgno, obno);
-    if (conflict != NULL && conflict->lockmode == 'X')
-    {
-      // conflicting write locks exist, must wait
-      // tx-> set_status(TR_WAIT)
-      //tx->set_lock();
-      //tx->set_obno(obno)
-
-      long conflict_tid = conflict->tid;
-      tx->setTx_semno(conflict_tid,0);
-
-      #ifdef TX_DEBUG
-      printf("\n Readtx: %d waiding for object %d held by %d", tid, obno,conflict_tid);
-      fflush(stdout);
-      #endif
-      // release the tm lock and wait
-      zgt_v(0);
-      zgt_p(tid);
-
-      // get the tm lock
-      zgt_p(0);
-
-      // check if the tx was aborted while waiting
-      if (tx->get_status() == TR_ABORT)
-      {
-        #ifdef TX_DEBUG
-        printf("\n Readtx: %d was aborted while waiting for the lock",tid);
-        fflush(stdout);
-        #endif
-        zgt_v(0);
-        pthread_exit(NULL);
-      }
-      // reset transaction parameters
-      /*
-      tx->set_status (TR_ACTIVE);
-      tx->set_obno(-1);
-      tx->set_lock(' ');
-      tx->setTx_semno(-1);
-      */
-    }
-
-
-
-      // Insert the obj into the hash table with READ lock
-      lockmode = 'R';
-      ZGT_Ht->add(tx, tx->sgno,obno,lockmode);
-
-      #ifdef TX_DEBUG
-        printf("\n Readtx: %d, got read lock on obj. %d", tid, obno);
-        fflush(stdout);
-      #endif
-  }
-
-      // perform the read operation
-      // decrease the value by 4
-      zgt_p(0); // get the lock
-      zgt_tx *txt = ZGT_Sh->lastr; // this will  hold the TXT and would get the tx
-      // get  the obj. value and decrease it - - rn i am not shure how to getthe obj val
-      int value = ZGT_Sh->objarray[obno]->value;// i belive that this is it
-      value = -4;
-
-      //log operation
-      fprintf(ZGT_Sh ->logfile, "T%d\t ReadTx\t %d:%d:%d\t ReadLock\t Granted\t %c \n", tid, obno,value, ZGT_Sh->optime[tid], txt->get_status()) ;
-      fflush(ZGT_Sh->logfile);
-
-      // increment the condset value for this transaction
-      ZGT_Sh->condset[tid]++;
-      
-      //release the tm lock
-      zgt_v(0);
-     // sleep for operation time
-      usleep(ZGT_Sh->optime[tid]);
-      
-      #ifdef TX_DEBUG
-        printf("\n Readtx: %d completed for obj %d", tid, obno);
-        fflush(stdout);
-      #endif
-
-
-      finish_operation(node->tid);
-      pthread_exit(NULL);	
     
 }
 
@@ -263,34 +117,104 @@ void *writetx(void *arg){ //do the operations for writing; similar to readTx
   struct param *node = (struct param*)arg;	// struct parameter that contains
   
   // do the operations for writing; similar to readTx. Write your code
-   //psudo code:
   long tid = node->tid;
   long obno = node->obno;
-  /*
-  Get the transaction semaphore
-
-  check if the transaction can proceed
-  Implement lock aquisition logic
-  check for conflicts with existing locks
-
-  log the write op
-  increase object value by 7
-  sleep for operation time
-
-  Release locks
-  uptate transaction state
-  Signal waiting transaction
-  release semaphore
-  exit tread
-  */
- pthread_exit(NULL);	
+  long count = node->count;
+  process_read_write_operation(tid,obno,count,'W');
+  pthread_exit(NULL);
 }
 
 // common method to process read/write: Just a suggestion
 
 void *process_read_write_operation(long tid, long obno,  int count, char mode){
 
+  // Start operation
+  start_operation(tid,count);
+  #ifdef TX_DEBUG
+    printf("\n Performing %stx: for %d for obj %d", (mode == 'R')? "Read": "Write",tid,obno);
+    fflush(stdout);
+  #endif
+
+  zgt_tx *tx = get_tx(tid);
+
+  // see if the tx exist
+  if(tx == NULL)
+  {
+    printf("\n Error: Transaction %d not found", tid);
+    fflush(stdout);
+    zgt_v(tx->semno); // release the resource
+    pthread_exit(NULL);
+  }
+  // if it does exsit then then lock the tm
+  zgt_p(0);
+
+  #ifdef TX_DEBUG
+      printf("\n %stx: got the lock for %d ", (mode == 'R')? "Read": "Write",tid);
+      fflush(stdout);
+    #endif
+  // check if the tx has been aborted
+  if(tx->get_status() == TR_ABORT)
+  {
+    zgt_v(0);
+    finish_operation(tid);
+    pthread_exit(NULL); 
+  }
+
+  // see what lock it is
+  char lock_mode = (mode =='R') ? 'S':'X';
+
+  // get the lock status
+  int lock_status = tx->set_lock(tid,tx->sgno,obno,count,lock_mode);
+
+  if(lock_status == 1)
+  {
+    zgt_v(0); // realase the tm
+    zgt_p(tx->semno); // wait for the semaphore
+    
+    zgt_p(0); // get the tm again
+
+    if(tx->get_status() == TR_ABORT)
+    {
+      zgt_v(0);
+      finish_operation(tid);
+      pthread_exit(NULL);
+    }
+  }
   
+  // read/write logic
+
+  if(mode == 'R')
+  {
+    ZGT_Sh->objarray[obno]->value -= 4;
+  }
+  else
+  {
+    ZGT_Sh->objarray[obno]->value += 7;
+  }
+
+
+  // log the operation
+
+  fprintf(ZGT_Sh->logfile,"T%d\t %c\t %s\t %d:%d:%d %sLock\t Granted\t %c \n",
+    tid,
+    ZGT_Sh->lastr->Txtype,
+    (mode == 'R')? "Readtx":"Wrtietx",
+    obno,
+    ZGT_Sh->objarray[obno]->value,
+    ZGT_Sh->optime[tid],
+    (mode == 'R')? "Read":"Wrtie",
+    tx->get_status());
+  fflush(ZGT_Sh->logfile);
+  // release tm lock
+  zgt_v(0);
+  // sleep till tx is done
+  usleep(ZGT_Sh->optime[tid]);
+    #ifdef TX_DEBUG
+      printf("\n %stx: %d completed for obj %d", (mode == 'R')? "Read": "Write",tid,obno);
+      fflush(stdout);
+    #endif
+
+  finish_operation(tid);
 }
 
 void *aborttx(void *arg)
@@ -300,7 +224,8 @@ void *aborttx(void *arg)
   long count = node->count;
   //write your code
   // should release all the locks, doesnt have to me in a particiular order
-
+  start_operation(tid,count);
+  do_commit_abort_operation(tid,TR_ABORT); // call command with parameter for "abort"
   pthread_exit(NULL);			// thread exit
 }
 
@@ -314,6 +239,11 @@ void *committx(void *arg)
   long count = node->count;
 
   //write your code
+
+  start_operation(tid,count);
+  
+  do_commit_abort_operation(tid,TR_END); // call command with parameter for "comit"
+
   pthread_exit(NULL);			// thread exit
 }
 
@@ -326,6 +256,47 @@ void *committx(void *arg)
 void *do_commit_abort_operation(long t, char status){
 
   // write your code
+  zgt_tx *tx = get_tx(t);
+  if(tx == NULL)
+  {
+    fprintf(ZGT_Sh->logfile, "ERROR: Trying to %s a non-existent transaction: %ld\n", (status == TR_END) ? "commit" : "abort", t);
+    fflush(ZGT_Sh->logfile);
+    pthread_exit(NULL);
+  }
+  if(status == TR_END)
+  {
+    // Free blocks before commiting
+    tx->free_locks();
+
+    // log the commit operation
+    fprintf(ZGT_Sh->logfile, "T%ld\tCommitTx\n", t);
+    fflush(ZGT_Sh->logfile);
+    } 
+    else 
+    { 
+      // if (status == TR_ABORT)
+      // Log the abort operation
+      fprintf(ZGT_Sh->logfile, "T%ld\tAbortTx\n", t);
+      fflush(ZGT_Sh->logfile);
+
+      // Free locks after aborting
+      tx->free_locks();
+  }
+  // Realease waiting transactions
+  if(tx->semno != -1)
+  {
+    int waiting_tx_count = zgt_nwait(tx->semno);
+    for(int i =0;i<waiting_tx_count;i++)
+    {
+      zgt_v(tx->semno);
+    }
+  }
+
+  // Remove the transaction from the transaction manager
+  tx->remove_tx();
+
+  // finish operation and exit tread
+  finish_operation(t);
 }
 
 int zgt_tx::remove_tx ()
@@ -357,11 +328,52 @@ int zgt_tx::set_lock(long tid1, long sgno1, long obno1, int count, char lockmode
   //transaction list if waiting.
   //if successful  return(0); else -1
   
-    //write your code
-    // should be similar to the free_locks below
-    //semophore =0 means that its locked
-    //optime is when you should sleep an operation
-  
+  //write your code
+  // should be similar to the free_locks below
+  //semophore =0 means that its locked
+  //optime is when you should sleep an operation
+  zgt_hlink *resource = ZGT_Ht->find(tid1,obno1);
+  if (resource != NULL)
+  {
+    #ifdef TX_DEBUG
+      printf("\nset_lock %d already holds lock on obj, %d", tid,obno1);
+      fflush(stdout);
+    #endif
+    return 0;
+  }
+
+  // check for Conflicts with other txs
+  zgt_hlink *conflict = ZGT_Ht->find(sgno1,obno1);
+
+  if(conflict != NULL && conflict->tid != tid1)
+  {
+    if(conflict->lockmode == 'X' ||(lockmode1 == 'X' && conflict->lockmode == 'S'))
+    {
+      this->status = TR_WAIT; // sets the status to wait
+      this->lockmode = lockmode1;
+      this->obno = obno1;
+
+      long conflict_tid = conflict->tid;
+      this->setTx_semno(conflict_tid,tid1);
+      #ifdef TX_DEBUG
+        printf("\nset_lock %d waiting for object %d held by %d",tid,obno1,conflict_tid);
+        fflush(stdout);
+      #endif 
+      return 1; // lock not gotten, needs to wait
+
+    } 
+  }
+  if(ZGT_Ht->add(this,sgno1,obno1,lockmode1) == -1)
+  {
+    printf("::: ERROR: Not enough memory to store obno:%d in lock hash table for node with tid: %d", obno1,tid1);
+    fflush(stdout);
+    return -1; // error for the getting the lcok
+  }
+  #ifdef TX_DEBUG
+    printf("\nset_lock %d got %c lcok on obj %d", tid1,lockmode1,obno1);
+    fflush(stdout);
+  #endif
+  return 0;
 }
 
 int zgt_tx::free_locks()
