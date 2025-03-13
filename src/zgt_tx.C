@@ -110,7 +110,6 @@ void *readtx(void *arg){
   long obno = node->obno;
   long count = node->count;
   process_read_write_operation(tid,obno,count,'R');
-  pthread_exit(NULL);
   pthread_exit(NULL);	
     
 }
@@ -172,7 +171,7 @@ void *process_read_write_operation(long tid, long obno,  int count, char mode){
   if(lock_status == 1)
   {
     zgt_v(0); // realase the tm
-    zgt_p(tid); // wait for the semaphore
+    zgt_p(tx->semno); // wait for the semaphore
     
     zgt_p(0); // get the tm again
 
@@ -198,14 +197,13 @@ void *process_read_write_operation(long tid, long obno,  int count, char mode){
 
   // log the operation
 
-  fprintf(ZGT_Sh->logfile,"T%d\t %c\t %s\t %d:%d:%d %sLock\t Granted\t %c \n",
+  fprintf(ZGT_Sh->logfile,"T%d\t\t %s\t %d:%d:%d %sLock\t Granted\t %c \n",
     tid,
-    ZGT_Sh->lastr->Txtype,
-    (mode == 'R')? "Readtx":"Wrtietx",
+    (mode == 'R')? "Readtx":"Writetx",
     obno,
     ZGT_Sh->objarray[obno]->value,
     ZGT_Sh->optime[tid],
-    (mode == 'R')? "Read":"Wrtie",
+    (mode == 'R')? "Read":"Write",
     tx->get_status());
   fflush(ZGT_Sh->logfile);
   // release tm lock
@@ -405,13 +403,14 @@ int zgt_tx::set_lock(long tid1, long sgno1, long obno1, int count, char lockmode
   printf("\n:::attempt to acquire the lock\n");
   fflush(stdout);
 #endif
-  zgt_p(0); // acquire TM lock before modifying hash table
-  #ifdef TX_DEBUG
-  printf("\n:::lock aquired\n");
-  fflush(stdout);
-  #endif
+  // zgt_p(0); // acquire TM lock before modifying hash table
+  
   if (ZGT_Ht->add(this, sgno1, obno1, lockmode1) == -1) // adds object to the hash table & handles errors if can't
   {
+    #ifdef TX_DEBUG
+  printf("\n:::ERROR\n");
+  fflush(stdout);
+  #endif
     printf(":::ERROR:Not enough memory to store obno:%d in lock hash table for node with tid:%d", obno1, tid1); // temp may not be valid at this point in code
     fflush(stdout);
     zgt_v(0); // release TM lock
@@ -424,8 +423,10 @@ int zgt_tx::set_lock(long tid1, long sgno1, long obno1, int count, char lockmode
   fflush(stdout);
 #endif
 
-  fprintf(ZGT_Sh->logfile, "T%ld acquired lock on Object %ld with mode %c\n", tid1, obno1, lockmode1); // make more descriptive
-  fflush(ZGT_Sh->logfile);
+#ifdef TX_DEBUG
+  printf("\n:::T%ld acquired lock on Object %ld with mode %c\n", tid1, obno1, lockmode1);
+  fflush(stdout);
+  #endif
 
   return (0);
 }
