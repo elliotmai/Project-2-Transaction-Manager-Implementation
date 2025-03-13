@@ -13,8 +13,7 @@ MAIN=zgt_test
 #solutions dir should have src, includes, and test-files directories
 #change with your path if you are not using omega.uta.edu
 
-TXMGR= ..
-
+TXMGR= /home/ngm1016/CSE-4331/Project-2-Transaction-Manager-Implementation
 
 
 #set DIRPATH to the dir from where you use the g++ compiler, change with your path if you are not using omega.uta.edu
@@ -22,7 +21,7 @@ DIRPATH=/usr
 CC=$(DIRPATH)/bin/g++ 
 
 # EXAMPLE: In the next line only TX_DEBUG is enabled
-#DEBUGFLAGS =  -DTX_DEBUG # -DTM_DEBUG -DHT_DEBUG
+DEBUGFLAGS =  -DTX_DEBUG -DTM_DEBUG -DHT_DEBUG
 
 #Below, all are enabled; you can disable it as you wish
 DEBUGFLAGS = -DTX_DEBUG -DTM_DEBUG -DHT_DEBUG

@@ -102,7 +102,7 @@ int zgt_tm::TxRead(long tid, long obno, int thrNum)
    struct param *nodeinfo = (struct param*)malloc(sizeof(struct param));
    nodeinfo->tid = tid;
    nodeinfo->obno = obno;
-   nodeinfo->Txtype = ' ';
+   nodeinfo->Txtype = 'R';
    nodeinfo->count = --SEQNUM[tid];
    int status;
    status = pthread_create(&threadid[thrNum],NULL,readtx,(void*)nodeinfo);
@@ -121,9 +121,29 @@ int zgt_tm::TxRead(long tid, long obno, int thrNum)
 int zgt_tm::TxWrite(long tid, long obno, int thrNum)
  {
   //call the write function (writetx); same as above
+  #ifdef TM_DEBUG
+      printf("\ncreating TxWrite thread for Tx: %d\n",tid);
+      fflush(stdout);
+   #endif
 
     // write your code
-    
+    pthread_t thread1;
+    struct param *nodeinfo = (struct param*)malloc(sizeof(struct param));
+    nodeinfo->tid = tid;
+    nodeinfo->obno = obno;
+    nodeinfo->Txtype = 'W';
+    nodeinfo->count = --SEQNUM[tid];
+    int status;
+    status = pthread_create(&threadid[thrNum],NULL,writetx,(void*)nodeinfo);
+    if (status){
+      printf("ERROR: return code from pthread_create() is:%d\n", status);
+      exit(-1);
+    }
+   #ifdef TM_DEBUG
+      printf("\nexiting TxWrite thread create for Tx: %d\n", tid);
+      fflush(stdout);
+   #endif
+
    return(0);  // successful operation
  }
 
@@ -131,6 +151,28 @@ int zgt_tm::CommitTx(long tid, int thrNum)
  {
    
     //write your code
+    #ifdef TM_DEBUG
+      printf("\ncreating TxCount thread for Tx: %d\n",tid);
+      fflush(stdout);
+   #endif
+
+    // write your code
+    pthread_t thread1;
+    struct param *nodeinfo = (struct param*)malloc(sizeof(struct param));
+    nodeinfo->tid = tid;
+    nodeinfo->obno = -1;
+    nodeinfo->Txtype = 'C';
+    nodeinfo->count = --SEQNUM[tid];
+    int status;
+    status = pthread_create(&threadid[thrNum],NULL,committx,(void*)nodeinfo);
+    if (status){
+      printf("ERROR: return code from pthread_create() is:%d\n", status);
+      exit(-1);
+    }
+   #ifdef TM_DEBUG
+      printf("\nexiting CommitTx thread create for Tx: %d\n", tid);
+      fflush(stdout);
+   #endif
    return(0); //successful operation
 
  }
@@ -138,6 +180,28 @@ int zgt_tm::CommitTx(long tid, int thrNum)
 int zgt_tm::AbortTx(long tid, int thrNum)
  {       
     //write your code
+    #ifdef TM_DEBUG
+    printf("\ncreating AbortTx thread for Tx: %d\n",tid);
+    fflush(stdout);
+ #endif
+
+  // write your code
+  pthread_t thread1;
+  struct param *nodeinfo = (struct param*)malloc(sizeof(struct param));
+  nodeinfo->tid = tid;
+  nodeinfo->obno = -1;
+  nodeinfo->Txtype = 'A';
+  nodeinfo->count = --SEQNUM[tid];
+  int status;
+  status = pthread_create(&threadid[thrNum],NULL,aborttx,(void*)nodeinfo);
+  if (status){
+    printf("ERROR: return code from pthread_create() is:%d\n", status);
+    exit(-1);
+  }
+ #ifdef TM_DEBUG
+    printf("\nexiting AbortTx thread create for Tx: %d\n", tid);
+    fflush(stdout);
+ #endif
    return(0);  //successful operation
  }
 
