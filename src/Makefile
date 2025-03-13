@@ -21,7 +21,7 @@ DIRPATH=/usr
 CC=$(DIRPATH)/bin/g++ 
 
 # EXAMPLE: In the next line only TX_DEBUG is enabled
-#DEBUGFLAGS =  -DTX_DEBUG # -DTM_DEBUG -DHT_DEBUG
+DEBUGFLAGS =  -DTX_DEBUG -DTM_DEBUG -DHT_DEBUG
 
 #Below, all are enabled; you can disable it as you wish
 DEBUGFLAGS = -DTX_DEBUG -DTM_DEBUG -DHT_DEBUG
