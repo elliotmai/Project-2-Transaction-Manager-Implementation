@@ -161,7 +161,7 @@ int zgt_tm::CommitTx(long tid, int thrNum)
     struct param *nodeinfo = (struct param*)malloc(sizeof(struct param));
     nodeinfo->tid = tid;
     nodeinfo->obno = -1;
-    nodeinfo->Txtype = 'C';
+    nodeinfo->Txtype = 'E';
     nodeinfo->count = --SEQNUM[tid];
     int status;
     status = pthread_create(&threadid[thrNum],NULL,committx,(void*)nodeinfo);

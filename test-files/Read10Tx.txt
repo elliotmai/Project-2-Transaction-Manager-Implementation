@@ -1,0 +1,35 @@
+// Read-only transactions  
+// 10 transactions  
+// Each transaction reads a different object  
+LogFile ../test-files/Read10Tx.log  
+BeginTx 1 R  
+Read    1 1  
+Commit 1  
+BeginTx 2 R  
+Read    2 2  
+Commit 2  
+BeginTx 3 R  
+Read    3 3  
+Commit 3  
+BeginTx 4 R  
+Read    4 4  
+Commit 4  
+BeginTx 5 R  
+Read    5 5  
+Commit 5  
+BeginTx 6 R  
+Read    6 6  
+Commit 6  
+BeginTx 7 R  
+Read    7 7  
+Commit 7  
+BeginTx 8 R  
+Read    8 8  
+Commit 8  
+BeginTx 9 R  
+Read    9 9  
+Commit 9  
+BeginTx 10 R  
+Read    10 10  
+Commit 10  
+End all
