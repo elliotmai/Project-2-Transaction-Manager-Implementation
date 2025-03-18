@@ -86,55 +86,61 @@ int zgt_tm::BeginTx(long tid, int thrNum, char type)
 
 int zgt_tm::TxRead(long tid, long obno, int thrNum)
  {
- //again set the txmgr semaphore first. create a thread and first check 
-   // whether this thread can proceed based on the condition variable for that thread.
-   // This is to prevent 2 operations of the same Tx follow one another.
-   // Then get the lock and perform the read operation.
-   //  Call the read function in transaction. 
-   //now create the thread and call the method readtx(void *)
+ 
+   #ifdef TM_DEBUG
+      printf("\ncreating TxRead thread for Tx: %d\n", tid);fflush(stdout);
+      fflush(stdout);
+   #endif
+   pthread_t thread1; // Decleare a variable to hod the Thread ID for the new thread
    
-#ifdef TM_DEBUG
-   printf("\ncreating TxRead thread for Tx: %d\n", tid);fflush(stdout);
-   fflush(stdout);
-#endif
-   pthread_t thread1;
    
    struct param *nodeinfo = (struct param*)malloc(sizeof(struct param));
-   nodeinfo->tid = tid;
-   nodeinfo->obno = obno;
-   nodeinfo->Txtype = 'R';
-   nodeinfo->count = --SEQNUM[tid];
-   int status;
+
+   // Sets the values of the 'nodeinfo' structre fields
+   nodeinfo->tid = tid; 
+   nodeinfo->obno = obno; 
+   nodeinfo->Txtype = 'R'; // sets it for Read
+   nodeinfo->count = --SEQNUM[tid]; 
+   int status; 
+
+   // Create a new thread that will run the 'readtx' function, passing the 'nodeinfo' structure as an argument
    status = pthread_create(&threadid[thrNum],NULL,readtx,(void*)nodeinfo);
+
+   // Check if the Transaction was created successfully
    if (status){
      printf("ERROR: return code from pthread_create() is:%d\n", status);
      exit(-1);
    }
    
-#ifdef TM_DEBUG
-   printf("\nexiting TxRead thread create for Tx: %d\n", tid);
-   fflush(stdout);
-#endif
-   return(0);   //successful operation
+   #ifdef TM_DEBUG
+      printf("\nexiting TxRead thread create for Tx: %d\n", tid);
+      fflush(stdout);
+   #endif
+   return(0);   
  }
 
 int zgt_tm::TxWrite(long tid, long obno, int thrNum)
  {
-  //call the write function (writetx); same as above
+  
   #ifdef TM_DEBUG
       printf("\ncreating TxWrite thread for Tx: %d\n",tid);
       fflush(stdout);
    #endif
 
-    // write your code
-    pthread_t thread1;
+    
+    pthread_t thread1;// Decleare a variable to hod the Thread ID for the new thread
+
     struct param *nodeinfo = (struct param*)malloc(sizeof(struct param));
+    // Sets the values of the 'nodeinfo' structre fields
     nodeinfo->tid = tid;
     nodeinfo->obno = obno;
-    nodeinfo->Txtype = 'W';
+    nodeinfo->Txtype = 'W'; // sets it for Write
     nodeinfo->count = --SEQNUM[tid];
     int status;
+    // Create a new thread that will run the 'writetx' function, passing the 'nodeinfo' structure as an argument
     status = pthread_create(&threadid[thrNum],NULL,writetx,(void*)nodeinfo);
+    
+    // Check if the Transaction was created successfully
     if (status){
       printf("ERROR: return code from pthread_create() is:%d\n", status);
       exit(-1);
@@ -150,21 +156,26 @@ int zgt_tm::TxWrite(long tid, long obno, int thrNum)
 int zgt_tm::CommitTx(long tid, int thrNum)
  {
    
-    //write your code
+    
     #ifdef TM_DEBUG
       printf("\ncreating TxCount thread for Tx: %d\n",tid);
       fflush(stdout);
    #endif
 
-    // write your code
-    pthread_t thread1;
+    
+    pthread_t thread1; // Decleare a variable to hod the Thread ID for the new thread
+    
     struct param *nodeinfo = (struct param*)malloc(sizeof(struct param));
+    // Sets the values of the 'nodeinfo' structre fields
     nodeinfo->tid = tid;
     nodeinfo->obno = -1;
-    nodeinfo->Txtype = 'C';
+    nodeinfo->Txtype = 'C'; // sets it for Commit
     nodeinfo->count = --SEQNUM[tid];
     int status;
+    
+    // Create a new thread that will run the 'comittx' function, passing the 'nodeinfo' structure as an argument 
     status = pthread_create(&threadid[thrNum],NULL,committx,(void*)nodeinfo);
+    // Check if the Transaction was created successfully
     if (status){
       printf("ERROR: return code from pthread_create() is:%d\n", status);
       exit(-1);
@@ -179,29 +190,33 @@ int zgt_tm::CommitTx(long tid, int thrNum)
  
 int zgt_tm::AbortTx(long tid, int thrNum)
  {       
-    //write your code
+    
     #ifdef TM_DEBUG
-    printf("\ncreating AbortTx thread for Tx: %d\n",tid);
-    fflush(stdout);
- #endif
+      printf("\ncreating AbortTx thread for Tx: %d\n",tid);
+       fflush(stdout);
+   #endif
 
-  // write your code
-  pthread_t thread1;
+  pthread_t thread1; // Decleare a variable to hod the Thread ID for the new thread
+  
   struct param *nodeinfo = (struct param*)malloc(sizeof(struct param));
+  // Sets the values of the 'nodeinfo' structre fields
   nodeinfo->tid = tid;
   nodeinfo->obno = -1;
-  nodeinfo->Txtype = 'A';
+  nodeinfo->Txtype = 'A'; // sets it for Abort
   nodeinfo->count = --SEQNUM[tid];
   int status;
+  // Create a new thread that will run the 'aborttx' function, passing the 'nodeinfo' structure as an argument
   status = pthread_create(&threadid[thrNum],NULL,aborttx,(void*)nodeinfo);
+
+  // Check if the Transaction was created successfully
   if (status){
     printf("ERROR: return code from pthread_create() is:%d\n", status);
     exit(-1);
   }
- #ifdef TM_DEBUG
+   #ifdef TM_DEBUG
     printf("\nexiting AbortTx thread create for Tx: %d\n", tid);
     fflush(stdout);
- #endif
+   #endif
    return(0);  //successful operation
  }
 
