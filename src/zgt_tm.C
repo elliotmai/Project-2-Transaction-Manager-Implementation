@@ -378,16 +378,3 @@ zgt_tm::zgt_tm()
    fflush(stdout);
 #endif
 };
-
- 
- 
-
-
-
-
-
-
-
-
-
-
