@@ -131,26 +131,15 @@ void *writetx(void *arg)
 void *process_read_write_operation(long tid, long obno, int count, char mode)
 {
 
-  // Start operation
-  start_operation(tid, count);
 #ifdef TX_DEBUG
   printf("\n Performing %stx: for %d for obj %d\n", (mode == 'R') ? "Read" : "Write", tid, obno);
   fflush(stdout);
 #endif
 
-  zgt_tx *tx = get_tx(tid);
-
-  // see if the tx exist
-  if (tx == NULL)
-  {
-    printf("\n Error: Transaction %d not found", tid);
-    fflush(stdout);
-    zgt_v(tx->semno); // release the resource
-    pthread_exit(NULL);
-  }
+  // Start operation
+  start_operation(tid, count);
   // if it does exsit then then lock the tm
-  zgt_p(0);
-
+  zgt_tx *tx = get_tx(tid);
 #ifdef TX_DEBUG
   printf("\n %stx: got the lock for %d \n", (mode == 'R') ? "Read" : "Write", tid);
   fflush(stdout);
@@ -162,11 +151,13 @@ void *process_read_write_operation(long tid, long obno, int count, char mode)
   // get the lock status
   int lock_status = tx->set_lock(tid, tx->sgno, obno, count, lock_mode);
 
+  zgt_p(0);
   tx->perform_read_write_operation(tid, obno, mode);
-  // release tm lock
   zgt_v(0);
+  // release tm lock
+
   // sleep till tx is done
-  usleep(ZGT_Sh->optime[tid]);
+  // usleep(ZGT_Sh->optime[tid]);
 #ifdef TX_DEBUG
   printf("\n %stx: %d completed for obj %d\n", (mode == 'R') ? "Read" : "Write", tid, obno);
   fflush(stdout);
@@ -174,7 +165,7 @@ void *process_read_write_operation(long tid, long obno, int count, char mode)
 
   finish_operation(tid);
 
-  pthread_exit(NULL);
+  return NULL;
 }
 
 void *aborttx(void *arg)
@@ -186,8 +177,11 @@ void *aborttx(void *arg)
   // Start operation with mutex lock and condition wait
   start_operation(tid, count);
 
+  zgt_p(0);
   // Perform abort operation
   do_commit_abort_operation(tid, TR_ABORT);
+  zgt_v(0);
+  finish_operation(tid);
 
   // thread exit
   pthread_exit(NULL);
@@ -202,8 +196,12 @@ void *committx(void *arg)
   // Start operation with mutex lock and condition wait
   start_operation(tid, count);
 
+  zgt_p(0);
   // Perform commit operation
   do_commit_abort_operation(tid, TR_END);
+  zgt_v(0);
+
+  finish_operation(tid);
 
   // thread exit
   pthread_exit(NULL);
@@ -218,8 +216,8 @@ void *committx(void *arg)
 void *do_commit_abort_operation(long t, char status)
 {
 
-  #ifdef TX_DEBUG
-  printf("\n Performing %stx: for %d for obj %d\n", (status == TR_ABORT) ? "Abort" : "Commit", t, status);
+#ifdef TX_DEBUG
+  printf("\n Performing %s for tx:%d \n", (status == TR_ABORT) ? "Abort" : "Commit", t);
   fflush(stdout);
 #endif
 
@@ -231,9 +229,17 @@ void *do_commit_abort_operation(long t, char status)
     fprintf(ZGT_Sh->logfile, "ERROR: Trying to %s a non-existent transaction: %ld\n",
             (status == TR_END) ? "commit" : "abort", t);
     fflush(ZGT_Sh->logfile);
-    pthread_exit(NULL); // Exit thread since the transaction does not exist
+    return NULL;
+    // pthread_exit(NULL); // Exit thread since the transaction does not exist
   }
 
+  int waiting_tx_count = zgt_nwait((int)t); // Get the number of waiting transactions
+  for (int i = 0; i < waiting_tx_count; i++)
+  {
+
+    zgt_v((int)t); // Signal each waiting transaction to proceed
+  }
+  tx->semno = -1;
   if (status == TR_END)
   {
 
@@ -241,42 +247,29 @@ void *do_commit_abort_operation(long t, char status)
     fprintf(ZGT_Sh->logfile, "T%ld\t\tCommitTx\t", t);
     fflush(ZGT_Sh->logfile);
 
-    // Commit operation: release all locks before committing
+    //  Commit operation: release all locks before committing
     tx->free_locks();
   }
-  else
+  else if (status == TR_ABORT)
   { // If status == TR_ABORT
     // Log the abort operation to indicate transaction failure
     fprintf(ZGT_Sh->logfile, "T%ld\tAbortTx\n", t);
     fflush(ZGT_Sh->logfile);
 
-    // Free locks after aborting to ensure rollback of changes
+    //  Free locks after aborting to ensure rollback of changes
     tx->free_locks();
   }
 
-  // Check if any transactions were waiting on this one and release them
-  if (tx->semno != -1)
-  {
-    int waiting_tx_count = zgt_nwait(tx->semno); // Get the number of waiting transactions
-    for (int i = 0; i < waiting_tx_count; i++)
-    {
-      zgt_v(tx->semno); // Signal each waiting transaction to proceed
-    }
-    tx->semno = -1;
-  }
-
-  // Remove the transaction from the transaction manager list
+   // Remove the transaction from the transaction manager list
   tx->remove_tx();
 
-  // Mark the transaction as completed
-  finish_operation(t);
 
-  #ifdef TX_DEBUG
-  printf("\n %stx: %d completed for obj %d\n", (status == TR_ABORT) ? "Abort" : "Commit", t, status);
+#ifdef TX_DEBUG
+  printf("\n %s tx:%d\n", (status == TR_ABORT) ? "Abort" : "Commit", t);
   fflush(stdout);
 #endif
 
-  pthread_exit(NULL);
+  return NULL;
 }
 
 int zgt_tx::remove_tx()
@@ -311,7 +304,7 @@ int zgt_tx::set_lock(long tid1, long sgno1, long obno1, int count, char lockmode
   // write your code
 
 #ifdef TX_DEBUG
-  printf("\n:::Begining zgt_tx::set_lock Function for T%ld\n", tid1);
+  printf("\n:::Begining zgt_tx::set_lock Function for T%ld #waiting on semno = %d\n", tid1, zgt_nwait((int)tid1));
   fflush(stdout);
 #endif
   // Ensure the transaction exists, print error if it does not
@@ -346,7 +339,8 @@ int zgt_tx::set_lock(long tid1, long sgno1, long obno1, int count, char lockmode
     printf("\n:::No lock on object %d\n", obno1);
     fflush(stdout);
 #endif
-    
+    // // Block the current transaction on semaphore
+    // zgt_p((int)tid1);
   }
   else if (tx_WithObjectLock->tid != tid1)
   {
@@ -355,27 +349,28 @@ int zgt_tx::set_lock(long tid1, long sgno1, long obno1, int count, char lockmode
 
     // Find transaction who owns the lock
     zgt_tx *tx_HoldingLock = get_tx(tx_WithObjectLock->tid);
-    if (tx_HoldingLock != NULL)
-    {
-      #ifdef TX_DEBUG
-      printf("\n:::Another transaction T%ld already has the lock on object %d\n", tx_HoldingLock->tid, obno1);
-      fflush(stdout);
-  #endif
-      // Associate the waiting transaction with the semaphore of the lock-holding transaction
-      setTx_semno(tx_HoldingLock->tid, (int)tx_HoldingLock->tid); 
+    // if (tx_HoldingLock != NULL)
+    // {
+#ifdef TX_DEBUG
+    printf("\n:::Another transaction T%ld already has the lock on object %d\n", tx_HoldingLock->tid, obno1);
+    fflush(stdout);
+#endif
+    // Associate the waiting transaction with the semaphore of the lock-holding transaction
+    setTx_semno(tx_HoldingLock->tid, (int)tx_HoldingLock->tid);
 
-      // Block the current transaction on semaphore
-      zgt_p(tx_HoldingLock->semno);                               
-    }
+    // Block the current transaction on semaphore
+    zgt_p((int)tx_HoldingLock->tid);
+    //}
   }
-  else
+  else if (tx_WithObjectLock->lockmode == lockmode1)
   {
+
     // Lock already held by current transaction
 #ifdef TX_DEBUG
     printf("\n:::Current transaction T%ld already has lock\n", tid1);
     fflush(stdout);
 #endif
-    return (0);
+    return 0;
   }
 
 // Lock not held by current transaction or any other transaction
@@ -386,7 +381,7 @@ int zgt_tx::set_lock(long tid1, long sgno1, long obno1, int count, char lockmode
 #endif
 
   // Add the object to the hash table & handles errors if can't
-  if (ZGT_Ht->add(this, sgno1, obno1, lockmode1) == -1) 
+  if (ZGT_Ht->add(get_tx(tid1), sgno1, obno1, lockmode1) == -1)
   {
     printf(":::ERROR:Not enough memory to store obno:%d in lock hash table for node with tid:%d", obno1, tid1);
     fflush(stdout);
@@ -394,7 +389,7 @@ int zgt_tx::set_lock(long tid1, long sgno1, long obno1, int count, char lockmode
   }
 
   // The transaction has aquired the lock, may now continue as an active TX
-  this->status = TR_ACTIVE;
+  get_tx(tid1)->status = TR_ACTIVE;
 
 #ifdef TX_DEBUG
   printf("\n:::T%ld acquired lock on Object %ld with mode %c\n", tid1, obno1, lockmode1);
